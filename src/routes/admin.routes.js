@@ -129,5 +129,27 @@ router.patch("/used-part-requests/:id/status", async (req, res, next) => {
   }
 });
 
-export default router;
+const serviceRequestStatusSchema = z.enum(["PENDING", "CONTACTED", "SCHEDULED", "IN_PROGRESS", "COMPLETED", "CANCELLED"]);
 
+router.get("/service-requests", async (req, res, next) => {
+  try {
+    const status = String(req.query.status || "").trim().toUpperCase();
+    const where = status ? { status: serviceRequestStatusSchema.parse(status) } : undefined;
+    const requests = await prisma.serviceRequest.findMany({ where, orderBy: { createdAt: "desc" }, take: 200 });
+    res.json({ requests });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/service-requests/:id/status", async (req, res, next) => {
+  try {
+    const status = serviceRequestStatusSchema.parse(req.body.status);
+    const request = await prisma.serviceRequest.update({ where: { id: req.params.id }, data: { status } });
+    res.json({ ok: true, request });
+  } catch (error) {
+    next(error);
+  }
+});
+
+export default router;
