@@ -20,6 +20,14 @@ enum PointMovementType {
   REVERSAL
 }
 
+enum UsedPartRequestStatus {
+  PENDING
+  CONTACTED
+  QUOTED
+  CLOSED
+  CANCELLED
+}
+
 model User {
   id                   String          @id @default(uuid())
   customerCode         String          @unique
@@ -71,3 +79,18 @@ model PointMovement {
   @@index([userId, createdAt])
 }
 
+
+model UsedPartRequest {
+  id        String                @id @default(uuid())
+  name      String
+  brand     String
+  model     String
+  year      String
+  part      String
+  details   String?
+  status    UsedPartRequestStatus @default(PENDING)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@index([status, createdAt])
+}

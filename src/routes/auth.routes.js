@@ -5,7 +5,7 @@ import { z } from "zod";
 import { config } from "../config.js";
 import { prisma } from "../lib/prisma.js";
 import { publicUser } from "../lib/public-user.js";
-import { sendWelcomeEmail } from "../lib/email.js";
+import { sendReferralRegistrationEmail, sendWelcomeEmail } from "../lib/email.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
@@ -43,7 +43,7 @@ router.post("/register", async (req, res, next) => {
       }
     }
 
-    const user = await prisma.$transaction(async (tx) => {
+    const registration = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
           customerCode: `JAM-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
@@ -77,14 +77,41 @@ router.post("/register", async (req, res, next) => {
           },
         });
       }
-      return created;
+      const referralOwner = referralCode
+        ? await tx.user.findUnique({ where: { id: referralCode.ownerId } })
+        : null;
+      return { user: created, referralOwner };
+    });
+
+    const { user, referralOwner } = registration;
+    const notificationJobs = [sendWelcomeEmail(user)];
+    if (referralOwner) {
+      notificationJobs.push(
+        sendReferralRegistrationEmail(referralOwner, user, config.referralRewardPoints),
+      );
+    }
+
+    const notificationResults = await Promise.allSettled(notificationJobs);
+    const welcomeEmailSent =
+      notificationResults[0].status === "fulfilled" && notificationResults[0].value.sent;
+
+    notificationResults.forEach((result, index) => {
+      if (result.status === "rejected") {
+        const label = index === 0 ? "bienvenida" : "aviso de referido";
+        console.error(`No se pudo enviar el correo de ${label}:`, result.reason?.message || result.reason);
+      }
     });
 
     const customer = publicUser(user);
-    res.status(201).json({ token: createToken(user), customer });
-
-    sendWelcomeEmail(user).catch((error) => {
-      console.error(`No se pudo enviar el correo de bienvenida a ${user.email}:`, error.message);
+    res.status(201).json({
+      token: createToken(user),
+      customer,
+      notifications: {
+        welcomeEmailSent,
+        referralEmailSent: referralOwner
+          ? notificationResults[1].status === "fulfilled" && notificationResults[1].value.sent
+          : null,
+      },
     });
   } catch (error) {
     next(error);

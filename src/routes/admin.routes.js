@@ -99,5 +99,35 @@ router.post("/points/adjust", async (req, res, next) => {
   }
 });
 
+const requestStatusSchema = z.enum(["PENDING", "CONTACTED", "QUOTED", "CLOSED", "CANCELLED"]);
+
+router.get("/used-part-requests", async (req, res, next) => {
+  try {
+    const status = String(req.query.status || "").trim().toUpperCase();
+    const where = status ? { status: requestStatusSchema.parse(status) } : undefined;
+    const requests = await prisma.usedPartRequest.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+    res.json({ requests });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/used-part-requests/:id/status", async (req, res, next) => {
+  try {
+    const status = requestStatusSchema.parse(req.body.status);
+    const request = await prisma.usedPartRequest.update({
+      where: { id: req.params.id },
+      data: { status },
+    });
+    res.json({ ok: true, request });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;
 

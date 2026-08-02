@@ -7,6 +7,7 @@ import { config } from "./config.js";
 import authRoutes from "./routes/auth.routes.js";
 import referralRoutes from "./routes/referral.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import usedPartRoutes from "./routes/used-part.routes.js";
 
 export const app = express();
 
@@ -29,6 +30,7 @@ app.get("/", (_req, res) => res.json({
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/referrals", referralRoutes);
+app.use("/api/used-part-requests", usedPartRoutes);
 app.use("/api/admin", adminRoutes);
 
 app.use((_req, res) => res.status(404).json({ error: "Ruta no encontrada." }));
@@ -42,4 +44,3 @@ app.use((error, _req, res, _next) => {
   console.error(error);
   res.status(500).json({ error: "Ocurrió un error interno." });
 });
-
