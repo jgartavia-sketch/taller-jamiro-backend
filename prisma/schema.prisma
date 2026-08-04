@@ -50,14 +50,27 @@ model User {
   referralCount        Int             @default(0)
   referredById         String?
   referredBy           User?           @relation("UserReferrals", fields: [referredById], references: [id])
-  referredUsers        User[]           @relation("UserReferrals")
-  referralCodes        ReferralCode[]   @relation("CodeOwner")
-  redeemedReferralCode ReferralCode?    @relation("CodeRedeemer")
+  referredUsers        User[]          @relation("UserReferrals")
+  referralCodes        ReferralCode[]  @relation("CodeOwner")
+  redeemedReferralCode ReferralCode?   @relation("CodeRedeemer")
   pointMovements       PointMovement[]
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
 
   @@index([createdAt])
+}
+
+model StaffAccount {
+  id             String          @id @default(uuid())
+  name           String
+  email          String          @unique
+  passwordHash   String
+  active         Boolean         @default(true)
+  pointMovements PointMovement[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([active])
 }
 
 model ReferralCode {
@@ -75,19 +88,22 @@ model ReferralCode {
 }
 
 model PointMovement {
-  id            String            @id @default(uuid())
-  userId        String
-  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type          PointMovementType
-  points        Int
-  amountColones Int?
-  description   String
-  referenceId   String?           @unique
-  createdAt     DateTime          @default(now())
+  id               String            @id @default(uuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type             PointMovementType
+  points           Int
+  amountColones    Int?
+  description      String
+  referenceId      String?           @unique
+  invoiceNumber    String?           @unique
+  createdByStaffId String?
+  createdByStaff   StaffAccount?     @relation(fields: [createdByStaffId], references: [id], onDelete: SetNull)
+  createdAt        DateTime          @default(now())
 
   @@index([userId, createdAt])
+  @@index([createdByStaffId, createdAt])
 }
-
 
 model UsedPartRequest {
   id        String                @id @default(uuid())
