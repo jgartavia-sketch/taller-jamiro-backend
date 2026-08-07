@@ -91,27 +91,25 @@ router.post("/register", async (req, res, next) => {
       );
     }
 
-    const notificationResults = await Promise.allSettled(notificationJobs);
-    const welcomeEmailSent =
-      notificationResults[0].status === "fulfilled" && notificationResults[0].value.sent;
-
-    notificationResults.forEach((result, index) => {
-      if (result.status === "rejected") {
-        const label = index === 0 ? "bienvenida" : "aviso de referido";
-        console.error(`No se pudo enviar el correo de ${label}:`, result.reason?.message || result.reason);
-      }
-    });
-
     const customer = publicUser(user);
     res.status(201).json({
       token: createToken(user),
       customer,
       notifications: {
-        welcomeEmailSent,
-        referralEmailSent: referralOwner
-          ? notificationResults[1].status === "fulfilled" && notificationResults[1].value.sent
-          : null,
+        welcomeEmailQueued: true,
+        referralEmailQueued: Boolean(referralOwner),
       },
+    });
+
+    // El registro ya está confirmado en la base de datos. El correo es una tarea
+    // secundaria y nunca debe mantener bloqueada la respuesta al navegador.
+    void Promise.allSettled(notificationJobs).then((notificationResults) => {
+      notificationResults.forEach((result, index) => {
+        if (result.status === "rejected") {
+          const label = index === 0 ? "bienvenida" : "aviso de referido";
+          console.error(`No se pudo enviar el correo de ${label}:`, result.reason?.message || result.reason);
+        }
+      });
     });
   } catch (error) {
     next(error);
