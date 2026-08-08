@@ -13,6 +13,7 @@ function getTransporter() {
       host: config.emailHost,
       port: config.emailPort,
       secure: config.emailSecure,
+      family: 4,
       auth: {
         user: config.emailUser,
         pass: config.emailPass,
@@ -30,7 +31,7 @@ function escapeHtml(value) {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
+    .replaceAll('\"', "&quot;")
     .replaceAll("'", "&#039;");
 }
 
