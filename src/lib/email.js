@@ -1,29 +1,39 @@
 import nodemailer from "nodemailer";
+import { lookup } from "node:dns/promises";
 import { config } from "../config.js";
 
-let transporter;
+let transporterPromise;
 
 function emailIsConfigured() {
   return Boolean(config.emailUser && config.emailPass);
 }
 
-function getTransporter() {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: config.emailHost,
-      port: config.emailPort,
-      secure: config.emailSecure,
-      family: 4,
-      auth: {
-        user: config.emailUser,
-        pass: config.emailPass,
-      },
-      connectionTimeout: 10_000,
-      greetingTimeout: 10_000,
-      socketTimeout: 15_000,
+async function getTransporter() {
+  if (!transporterPromise) {
+    transporterPromise = (async () => {
+      const { address } = await lookup(config.emailHost, { family: 4 });
+
+      return nodemailer.createTransport({
+        host: address,
+        port: config.emailPort,
+        secure: config.emailSecure,
+        auth: {
+          user: config.emailUser,
+          pass: config.emailPass,
+        },
+        tls: {
+          servername: config.emailHost,
+        },
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 15_000,
+      });
+    })().catch((error) => {
+      transporterPromise = undefined;
+      throw error;
     });
   }
-  return transporter;
+  return transporterPromise;
 }
 
 function escapeHtml(value) {
@@ -46,7 +56,8 @@ export async function sendWelcomeEmail(customer) {
   }
 
   const safeName = escapeHtml(customer.name);
-  const info = await getTransporter().sendMail({
+  const mailer = await getTransporter();
+  const info = await mailer.sendMail({
     from: emailFrom(),
     to: customer.email,
     subject: "¡Bienvenido al Club Jamiro!",
@@ -88,7 +99,8 @@ export async function sendReferralRegistrationEmail(owner, referredCustomer, poi
 
   const safeOwnerName = escapeHtml(owner.name);
   const safeReferredName = escapeHtml(referredCustomer.name);
-  const info = await getTransporter().sendMail({
+  const mailer = await getTransporter();
+  const info = await mailer.sendMail({
     from: emailFrom(),
     to: owner.email,
     subject: "¡Tu código de referido fue utilizado!",
@@ -134,7 +146,8 @@ export async function sendPointsAddedEmail(customer, award) {
     ? `<p style="margin:8px 0 0;color:#4b5563">Factura: <strong>${escapeHtml(award.invoiceNumber)}</strong></p>`
     : "";
 
-  const info = await getTransporter().sendMail({
+  const mailer = await getTransporter();
+  const info = await mailer.sendMail({
     from: emailFrom(),
     to: customer.email,
     subject: `¡Sumaste ${award.points} puntos en Club Jamiro!`,
