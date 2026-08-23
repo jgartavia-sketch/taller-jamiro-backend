@@ -1,46 +1,72 @@
+import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma.js";
 
-function readStaff(number) {
-  const name = String(process.env[`STAFF_${number}_NAME`] || "").trim();
-  const email = String(process.env[`STAFF_${number}_EMAIL`] || "").trim().toLowerCase();
-  const password = String(process.env[`STAFF_${number}_PASSWORD`] || "");
+function readStaff() {
+  const name = String(process.env.STAFF_1_NAME || "").trim();
+  const email = String(process.env.STAFF_1_EMAIL || "")
+    .trim()
+    .toLowerCase();
+  const password = String(process.env.STAFF_1_PASSWORD || "");
 
   if (!name || !email || !password) {
-    throw new Error(`Faltan STAFF_${number}_NAME, STAFF_${number}_EMAIL o STAFF_${number}_PASSWORD.`);
+    throw new Error(
+      "Faltan STAFF_1_NAME, STAFF_1_EMAIL o STAFF_1_PASSWORD."
+    );
   }
+
   if (password.length < 8) {
-    throw new Error(`STAFF_${number}_PASSWORD debe tener al menos 8 caracteres.`);
+    throw new Error(
+      "STAFF_1_PASSWORD debe tener al menos 8 caracteres."
+    );
   }
 
   return { name, email, password };
 }
 
 async function provision() {
-  const accounts = [readStaff(1), readStaff(2)];
+  const account = readStaff();
+  const passwordHash = await bcrypt.hash(account.password, 12);
 
-  if (accounts[0].email === accounts[1].email) {
-    throw new Error("Los dos empleados deben usar correos diferentes.");
-  }
+  await prisma.staffAccount.upsert({
+    where: {
+      email: account.email,
+    },
+    update: {
+      name: account.name,
+      passwordHash,
+      active: true,
+    },
+    create: {
+      name: account.name,
+      email: account.email,
+      passwordHash,
+      active: true,
+    },
+  });
 
-  for (const account of accounts) {
-    const passwordHash = await bcrypt.hash(account.password, 12);
-    await prisma.staffAccount.upsert({
-      where: { email: account.email },
-      update: { name: account.name, passwordHash, active: true },
-      create: {
-        name: account.name,
-        email: account.email,
-        passwordHash,
-        active: true,
+  const deactivated = await prisma.staffAccount.updateMany({
+    where: {
+      email: {
+        not: account.email,
       },
-    });
-    console.info(`Cuenta staff lista: ${account.email}`);
-  }
+      active: true,
+    },
+    data: {
+      active: false,
+    },
+  });
+
+  console.info(`Única cuenta staff activa: ${account.email}`);
+  console.info(`Otras cuentas desactivadas: ${deactivated.count}`);
 }
 
 try {
   await provision();
+} catch (error) {
+  console.error("No se pudo provisionar la cuenta staff.");
+  console.error(error);
+  process.exitCode = 1;
 } finally {
   await prisma.$disconnect();
 }
