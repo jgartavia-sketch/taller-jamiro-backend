@@ -37,6 +37,17 @@ enum ServiceRequestStatus {
   CANCELLED
 }
 
+enum WorkshopStatus {
+  RECEIVED
+  DIAGNOSIS
+  IN_PROGRESS
+  WAITING_PARTS
+  QUALITY_CHECK
+  READY
+  DELIVERED
+  CANCELLED
+}
+
 model User {
   id                   String          @id @default(uuid())
   customerCode         String          @unique
@@ -54,6 +65,8 @@ model User {
   referralCodes        ReferralCode[]  @relation("CodeOwner")
   redeemedReferralCode ReferralCode?   @relation("CodeRedeemer")
   pointMovements       PointMovement[]
+  vehicles             Vehicle[]
+  serviceOrders        ServiceOrder[]
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 
@@ -67,6 +80,8 @@ model StaffAccount {
   passwordHash   String
   active         Boolean         @default(true)
   pointMovements PointMovement[]
+  createdOrders  ServiceOrder[]  @relation("OrderCreator")
+  serviceUpdates ServiceUpdate[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -134,4 +149,74 @@ model ServiceRequest {
   updatedAt     DateTime             @updatedAt
 
   @@index([status, createdAt])
+}
+
+model Vehicle {
+  id            String         @id @default(uuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plate         String
+  brand         String
+  model         String
+  year          String
+  color         String
+  serviceOrders ServiceOrder[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([userId, plate])
+  @@index([plate])
+}
+
+model ServiceOrder {
+  id                String          @id @default(uuid())
+  orderCode         String          @unique
+  customerId        String
+  customer          User            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  vehicleId         String
+  vehicle           Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  mileage           Int
+  fuelLevel         String
+  reason            String
+  visibleDamage     String?
+  receivedItems     String?
+  estimatedDelivery DateTime?
+  status            WorkshopStatus  @default(RECEIVED)
+  deliveredAt       DateTime?
+  createdByStaffId  String
+  createdByStaff    StaffAccount    @relation("OrderCreator", fields: [createdByStaffId], references: [id], onDelete: Restrict)
+  updates           ServiceUpdate[]
+  photos            ServicePhoto[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([customerId, status])
+  @@index([status, updatedAt])
+}
+
+model ServiceUpdate {
+  id               String         @id @default(uuid())
+  serviceOrderId   String
+  serviceOrder     ServiceOrder   @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+  status           WorkshopStatus
+  note             String
+  createdByStaffId String
+  createdByStaff   StaffAccount   @relation(fields: [createdByStaffId], references: [id], onDelete: Restrict)
+  photos           ServicePhoto[]
+  createdAt        DateTime       @default(now())
+
+  @@index([serviceOrderId, createdAt])
+}
+
+model ServicePhoto {
+  id             String         @id @default(uuid())
+  serviceOrderId String
+  serviceOrder   ServiceOrder   @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+  updateId       String?
+  update         ServiceUpdate? @relation(fields: [updateId], references: [id], onDelete: Cascade)
+  dataUrl        String         @db.Text
+  caption        String?
+  createdAt      DateTime       @default(now())
+
+  @@index([serviceOrderId, createdAt])
 }

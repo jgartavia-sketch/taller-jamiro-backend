@@ -10,6 +10,7 @@ import adminRoutes from "./routes/admin.routes.js";
 import staffRoutes from "./routes/staff.routes.js";
 import usedPartRoutes from "./routes/used-part.routes.js";
 import serviceRequestRoutes from "./routes/service-request.routes.js";
+import workshopRoutes from "./routes/workshop.routes.js";
 
 export const app = express();
 
@@ -21,7 +22,7 @@ app.use(cors({
     callback(new Error("Origen no autorizado."));
   },
 }));
-app.use(express.json({ limit: "100kb" }));
+app.use(express.json({ limit: "15mb" }));
 app.use(morgan(config.nodeEnv === "production" ? "combined" : "dev"));
 
 app.get("/", (_req, res) => res.json({
@@ -35,6 +36,7 @@ app.use("/api/referrals", referralRoutes);
 app.use("/api/used-part-requests", usedPartRoutes);
 app.use("/api/service-requests", serviceRequestRoutes);
 app.use("/api/staff", staffRoutes);
+app.use("/api/workshop", workshopRoutes);
 app.use("/api/admin", adminRoutes);
 
 app.use((_req, res) => res.status(404).json({ error: "Ruta no encontrada." }));
