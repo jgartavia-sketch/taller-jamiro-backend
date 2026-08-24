@@ -48,19 +48,41 @@ router.get("/me", requireStaff, (req, res) => {
 });
 
 const customerSearchSchema = z.object({
-  email: z.email().trim().toLowerCase(),
+  query: z.string().trim().min(2).max(120),
 });
 
 router.get("/customers/search", requireStaff, async (req, res, next) => {
   try {
-    const input = customerSearchSchema.parse({ email: req.query.email });
-    const customer = await prisma.user.findUnique({ where: { email: input.email } });
+    const input = customerSearchSchema.parse({ query: req.query.q });
+    const normalizedQuery = input.query.toLowerCase();
+    const customers = await prisma.user.findMany({
+      where: {
+        role: "CUSTOMER",
+        OR: [
+          { name: { contains: input.query, mode: "insensitive" } },
+          { email: { contains: input.query, mode: "insensitive" } },
+          { phone: { contains: input.query } },
+          { customerCode: { contains: input.query, mode: "insensitive" } },
+        ],
+      },
+      orderBy: { name: "asc" },
+      take: 20,
+    });
 
-    if (!customer || customer.role !== "CUSTOMER") {
-      return res.status(404).json({ error: "No existe un cliente con ese correo." });
+    if (customers.length === 0) {
+      return res.status(404).json({ error: "No encontramos clientes con ese dato." });
     }
 
-    res.json({ customer: publicUser(customer) });
+    customers.sort((first, second) => {
+      const firstExact = [first.email, first.phone, first.customerCode]
+        .some((value) => value.toLowerCase() === normalizedQuery);
+      const secondExact = [second.email, second.phone, second.customerCode]
+        .some((value) => value.toLowerCase() === normalizedQuery);
+
+      return Number(secondExact) - Number(firstExact);
+    });
+
+    res.json({ customers: customers.map(publicUser) });
   } catch (error) {
     next(error);
   }
