@@ -10,6 +10,7 @@
     "prisma:migrate": "prisma migrate deploy",
     "prisma:dev": "prisma migrate dev",
     "staff:provision": "node src/scripts/provision-staff.js",
+    "admin:provision": "node src/scripts/provision-admin.js",
     "test": "node --test"
   },
   "dependencies": {

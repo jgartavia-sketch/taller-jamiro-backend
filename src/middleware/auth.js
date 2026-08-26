@@ -33,13 +33,17 @@ export async function requireStaff(req, res, next) {
     if (!token) return res.status(401).json({ error: "Debés iniciar sesión como empleado." });
 
     const payload = jwt.verify(token, config.jwtSecret);
-    if (payload.kind !== "staff") {
+    if (!["staff", "admin"].includes(payload.kind)) {
       return res.status(401).json({ error: "Esta sesión no corresponde al personal." });
     }
 
     const staff = await prisma.staffAccount.findUnique({ where: { id: payload.sub } });
     if (!staff || !staff.active) {
       return res.status(401).json({ error: "La cuenta del empleado no está activa." });
+    }
+
+    if (payload.kind === "admin" && staff.email !== config.adminEmail) {
+      return res.status(401).json({ error: "La cuenta administrativa no es válida." });
     }
 
     req.staff = staff;

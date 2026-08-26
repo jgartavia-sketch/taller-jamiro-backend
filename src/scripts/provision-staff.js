@@ -26,6 +26,9 @@ function readStaff() {
 
 async function provision() {
   const account = readStaff();
+  const adminEmail = String(process.env.ADMIN_EMAIL || "automotrizjamirosc@gmail.com")
+    .trim()
+    .toLowerCase();
   const passwordHash = await bcrypt.hash(account.password, 12);
 
   await prisma.staffAccount.upsert({
@@ -48,7 +51,7 @@ async function provision() {
   const deactivated = await prisma.staffAccount.updateMany({
     where: {
       email: {
-        not: account.email,
+        notIn: [account.email, adminEmail],
       },
       active: true,
     },

@@ -11,6 +11,7 @@ import staffRoutes from "./routes/staff.routes.js";
 import usedPartRoutes from "./routes/used-part.routes.js";
 import serviceRequestRoutes from "./routes/service-request.routes.js";
 import workshopRoutes from "./routes/workshop.routes.js";
+import adminPortalRoutes from "./routes/admin-portal.routes.js";
 
 export const app = express();
 
@@ -36,6 +37,7 @@ app.use("/api/referrals", referralRoutes);
 app.use("/api/used-part-requests", usedPartRoutes);
 app.use("/api/service-requests", serviceRequestRoutes);
 app.use("/api/staff", staffRoutes);
+app.use("/api/admin-portal", adminPortalRoutes);
 app.use("/api/workshop", workshopRoutes);
 app.use("/api/admin", adminRoutes);
 
