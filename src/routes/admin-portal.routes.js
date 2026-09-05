@@ -71,4 +71,54 @@ router.get("/me", requireAdminSession, (req, res) => {
   res.json({ admin: publicAdmin(req.admin) });
 });
 
+router.get("/customers", requireAdminSession, async (req, res, next) => {
+  try {
+    const q = String(req.query.q || "").trim();
+    const customers = await prisma.user.findMany({
+      where: {
+        role: "CUSTOMER",
+        ...(q ? {
+          OR: [
+            { name: { contains: q, mode: "insensitive" } },
+            { email: { contains: q, mode: "insensitive" } },
+            { phone: { contains: q } },
+            { customerCode: { contains: q, mode: "insensitive" } },
+          ],
+        } : {}),
+      },
+      select: {
+        id: true,
+        customerCode: true,
+        name: true,
+        email: true,
+        phone: true,
+        purchasePoints: true,
+        referralPoints: true,
+        referralCount: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    });
+
+    res.json({
+      total: customers.length,
+      customers: customers.map((customer) => ({
+        id: customer.id,
+        customerId: customer.customerCode,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        purchasePoints: customer.purchasePoints,
+        referralPoints: customer.referralPoints,
+        referralCount: customer.referralCount,
+        totalPoints: customer.purchasePoints + customer.referralPoints,
+        createdAt: customer.createdAt,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;
