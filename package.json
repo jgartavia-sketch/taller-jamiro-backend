@@ -11,7 +11,8 @@
     "prisma:dev": "prisma migrate dev",
     "staff:provision": "node src/scripts/provision-staff.js",
     "admin:provision": "node src/scripts/provision-admin.js",
-    "test": "node --test"
+    "test": "node --test",
+    "staff:check": "node src/scripts/check-staff.js"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
@@ -22,7 +23,7 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
-    "nodemailer": "^9.0.3",
+    "nodemailer": "^10.1.1",
     "zod": "^4.1.11"
   },
   "devDependencies": {
@@ -35,5 +36,8 @@
     "@prisma/client@6.19.3": true,
     "@prisma/engines@6.19.3": true,
     "prisma@6.19.3": true
+  },
+  "overrides": {
+    "deepmerge-ts": "^8.0.0"
   }
 }

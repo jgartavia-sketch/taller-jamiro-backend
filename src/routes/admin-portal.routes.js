@@ -1,3 +1,4 @@
+import { emailSchema } from "../lib/validation.js";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -8,7 +9,7 @@ import { prisma } from "../lib/prisma.js";
 const router = Router();
 
 const loginSchema = z.object({
-  email: z.email().trim().toLowerCase(),
+  email: emailSchema,
   password: z.string().min(1).max(100),
 });
 
@@ -26,13 +27,13 @@ async function requireAdminSession(req, res, next) {
     const token = bearerToken(req);
     if (!token) return res.status(401).json({ error: "Debés iniciar sesión como administrador." });
 
-    const payload = jwt.verify(token, config.jwtSecret);
+    const payload = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] });
     if (payload.kind !== "admin") {
       return res.status(401).json({ error: "Esta sesión no corresponde al administrador." });
     }
 
     const admin = await prisma.staffAccount.findUnique({ where: { id: payload.sub } });
-    if (!admin || !admin.active || admin.email !== config.adminEmail) {
+    if (!admin || !admin.active || payload.version !== admin.tokenVersion || admin.email !== config.adminEmail) {
       return res.status(401).json({ error: "La cuenta administrativa no está activa." });
     }
 
@@ -56,7 +57,7 @@ router.post("/login", async (req, res, next) => {
     }
 
     const token = jwt.sign(
-      { sub: admin.id, kind: "admin" },
+      { sub: admin.id, kind: "admin", version: admin.tokenVersion },
       config.jwtSecret,
       { expiresIn: config.jwtExpiresIn },
     );
@@ -69,6 +70,13 @@ router.post("/login", async (req, res, next) => {
 
 router.get("/me", requireAdminSession, (req, res) => {
   res.json({ admin: publicAdmin(req.admin) });
+});
+
+router.post("/logout", requireAdminSession, async (req, res, next) => {
+  try {
+    await prisma.staffAccount.update({ where: { id: req.admin.id }, data: { tokenVersion: { increment: 1 } } });
+    res.json({ ok: true });
+  } catch (error) { next(error); }
 });
 
 router.get("/customers", requireAdminSession, async (req, res, next) => {

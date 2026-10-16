@@ -1,3 +1,4 @@
+import { emailSchema } from "../lib/validation.js";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
@@ -28,8 +29,8 @@ router.get("/customers", async (req, res, next) => {
 });
 
 const purchaseSchema = z.object({
-  email: z.email().trim().toLowerCase(),
-  amountColones: z.coerce.number().int().min(100),
+  email: emailSchema,
+  amountColones: z.coerce.number().int().min(100).max(100_000_000),
   description: z.string().trim().min(3).max(200).default("Compra o servicio confirmado"),
   referenceId: z.string().trim().min(3).max(100).optional(),
 });
@@ -65,8 +66,8 @@ router.post("/points/purchase", async (req, res, next) => {
 });
 
 const adjustmentSchema = z.object({
-  email: z.email().trim().toLowerCase(),
-  points: z.coerce.number().int().refine((value) => value !== 0),
+  email: emailSchema,
+  points: z.coerce.number().int().min(-1_000_000).max(1_000_000).refine((value) => value !== 0),
   description: z.string().trim().min(3).max(200),
 });
 
@@ -79,10 +80,12 @@ router.post("/points/adjust", async (req, res, next) => {
       return res.status(400).json({ error: "El cliente no tiene suficientes puntos." });
     }
     const updated = await prisma.$transaction(async (tx) => {
-      const result = await tx.user.update({
-        where: { id: user.id },
+      const changed = await tx.user.updateMany({
+        where: { id: user.id, ...(input.points < 0 ? { purchasePoints: { gte: -input.points } } : {}) },
         data: { purchasePoints: { increment: input.points } },
       });
+      if (changed.count !== 1) { const error = new Error("El cliente no tiene suficientes puntos."); error.status = 409; throw error; }
+      const result = await tx.user.findUnique({ where: { id: user.id } });
       await tx.pointMovement.create({
         data: {
           userId: user.id,

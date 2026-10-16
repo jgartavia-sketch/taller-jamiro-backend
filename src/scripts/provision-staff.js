@@ -10,6 +10,9 @@ function readStaffAccounts() {
     const email = String(process.env[`STAFF_${index}_EMAIL`] || "").trim().toLowerCase();
     const password = String(process.env[`STAFF_${index}_PASSWORD`] || "");
 
+    const role = String(process.env[`STAFF_${index}_ROLE`] || "MECHANIC").trim().toUpperCase();
+    if (!["MECHANIC", "RECEPTION"].includes(role)) throw new Error(`STAFF_${index}_ROLE no es válido.`);
+
     const hasAnyValue = Boolean(name || email || password);
     if (!hasAnyValue) continue;
 
@@ -17,11 +20,12 @@ function readStaffAccounts() {
       throw new Error(`STAFF_${index} está incompleto. Debe tener NAME, EMAIL y PASSWORD.`);
     }
 
-    if (password.length < 8) {
-      throw new Error(`STAFF_${index}_PASSWORD debe tener al menos 8 caracteres.`);
+    if (password.length < 10 || Buffer.byteLength(password, "utf8") > 72) {
+      throw new Error(`STAFF_${index}_PASSWORD debe tener al menos 10 caracteres y como máximo 72 bytes.`);
     }
 
-    accounts.push({ name, email, password });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error(`STAFF_${index}_EMAIL no es válido.`);
+    accounts.push({ name, email, password, role });
   }
 
   if (accounts.length === 0) {
@@ -42,38 +46,22 @@ async function provision() {
     .trim()
     .toLowerCase();
 
-  for (const account of accounts) {
-    const passwordHash = await bcrypt.hash(account.password, 12);
-
-    await prisma.staffAccount.upsert({
-      where: { email: account.email },
-      update: {
-        name: account.name,
-        passwordHash,
-        active: true,
-      },
-      create: {
-        name: account.name,
-        email: account.email,
-        passwordHash,
-        active: true,
-      },
-    });
-
-    console.info(`Cuenta staff activa: ${account.name} <${account.email}>`);
+  if (accounts.some((account) => account.email === adminEmail)) {
+    throw new Error("El correo de admin no puede utilizarse como cuenta staff.");
   }
-
-  const allowedEmails = [...accounts.map((account) => account.email), adminEmail];
-  const deactivated = await prisma.staffAccount.updateMany({
-    where: {
-      email: { notIn: allowedEmails },
-      active: true,
-    },
-    data: { active: false },
+  const prepared = await Promise.all(accounts.map(async (account) => ({
+    ...account, passwordHash: await bcrypt.hash(account.password, 12),
+  })));
+  await prisma.$transaction(async (tx) => {
+    for (const { name, email, role, passwordHash } of prepared) {
+      await tx.staffAccount.upsert({
+        where: { email },
+        update: { name, role, passwordHash, active: true, tokenVersion: { increment: 1 } },
+        create: { name, email, role, passwordHash, active: true },
+      });
+    }
   });
-
-  console.info(`Cuentas staff configuradas: ${accounts.length}`);
-  console.info(`Cuentas antiguas desactivadas: ${deactivated.count}`);
+  console.info(`Cuentas staff configuradas: ${accounts.length}. Las demás cuentas se conservan.`);
 }
 
 try {

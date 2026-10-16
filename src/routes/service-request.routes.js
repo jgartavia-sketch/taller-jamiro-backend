@@ -1,3 +1,4 @@
+import { dateSchema } from "../lib/validation.js";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
@@ -11,7 +12,7 @@ const serviceRequestSchema = z.object({
   year: z.string().trim().regex(/^\d{4}$/, "El año debe tener cuatro dígitos."),
   service: z.string().trim().min(3).max(120),
   problem: z.string().trim().min(5).max(1500),
-  preferredDate: z.string().trim().optional().or(z.literal("")),
+  preferredDate: dateSchema,
 });
 
 router.post("/", async (req, res, next) => {

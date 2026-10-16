@@ -1,0 +1,7 @@
+Migration OK 202607280001_init
+Migration OK 202608020002_service_requests
+Migration OK 202608040001_staff_points
+Migration OK 202608230001_workshop_service_orders
+Migration OK 202610150000_restore_used_part_requests
+Migration OK 202610150001_staff_roles
+SQL PASS: migraciones, reparación idempotente, defaults de staff, referido de uso único y canje condicionado. Motor PostgreSQL PGlite aislado.

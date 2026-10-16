@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
 import { prisma } from "../lib/prisma.js";
@@ -12,13 +13,13 @@ export async function requireAuth(req, res, next) {
     const token = bearerToken(req);
     if (!token) return res.status(401).json({ error: "Debés iniciar sesión." });
 
-    const payload = jwt.verify(token, config.jwtSecret);
-    if (payload.kind === "staff") {
+    const payload = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] });
+    if (payload.kind !== "customer" || typeof payload.sub !== "string") {
       return res.status(401).json({ error: "Esta sesión no corresponde a un cliente." });
     }
 
     const user = await prisma.user.findUnique({ where: { id: payload.sub } });
-    if (!user) return res.status(401).json({ error: "La sesión ya no es válida." });
+    if (!user || payload.version !== user.tokenVersion) return res.status(401).json({ error: "La sesión ya no es válida." });
 
     req.user = user;
     next();
@@ -32,13 +33,13 @@ export async function requireStaff(req, res, next) {
     const token = bearerToken(req);
     if (!token) return res.status(401).json({ error: "Debés iniciar sesión como empleado." });
 
-    const payload = jwt.verify(token, config.jwtSecret);
+    const payload = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] });
     if (!["staff", "admin"].includes(payload.kind)) {
       return res.status(401).json({ error: "Esta sesión no corresponde al personal." });
     }
 
     const staff = await prisma.staffAccount.findUnique({ where: { id: payload.sub } });
-    if (!staff || !staff.active) {
+    if (!staff || !staff.active || payload.version !== staff.tokenVersion) {
       return res.status(401).json({ error: "La cuenta del empleado no está activa." });
     }
 
@@ -54,8 +55,17 @@ export async function requireStaff(req, res, next) {
 }
 
 export function requireAdminKey(req, res, next) {
-  if (req.get("x-admin-key") !== config.adminApiKey) {
+  const supplied = Buffer.from(req.get("x-admin-key") || "");
+  const expected = Buffer.from(config.adminApiKey);
+  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
     return res.status(401).json({ error: "Acceso administrativo no autorizado." });
+  }
+  next();
+}
+
+export function requireOperations(req, res, next) {
+  if (req.staff.role === "RECEPTION" && req.staff.email !== config.adminEmail) {
+    return res.status(403).json({ error: "Tu cuenta permite registrar y buscar clientes. Esta función requiere acceso de mecánico o administrador." });
   }
   next();
 }

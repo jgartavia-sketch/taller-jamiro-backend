@@ -1,3 +1,5 @@
+import { customerRegistrationSchema } from "../lib/validation.js";
+import { emailSchema } from "../lib/validation.js";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -7,25 +9,25 @@ import { prisma } from "../lib/prisma.js";
 import { pointsFromColones } from "../lib/points.js";
 import { publicUser } from "../lib/public-user.js";
 import { sendPointsAddedEmail } from "../lib/email.js";
-import { requireStaff } from "../middleware/auth.js";
+import { requireStaff, requireOperations } from "../middleware/auth.js";
 
 const router = Router();
 
 const loginSchema = z.object({
-  email: z.email().trim().toLowerCase(),
+  email: emailSchema,
   password: z.string().min(1).max(100),
 });
 
 function createStaffToken(staff) {
   return jwt.sign(
-    { sub: staff.id, kind: "staff" },
+    { sub: staff.id, kind: "staff", version: staff.tokenVersion },
     config.jwtSecret,
     { expiresIn: config.jwtExpiresIn },
   );
 }
 
 function publicStaff(staff) {
-  return { id: staff.id, name: staff.name, email: staff.email };
+  return { id: staff.id, name: staff.name, email: staff.email, role: staff.role };
 }
 
 router.post("/login", async (req, res, next) => {
@@ -45,6 +47,27 @@ router.post("/login", async (req, res, next) => {
 
 router.get("/me", requireStaff, (req, res) => {
   res.json({ staff: publicStaff(req.staff) });
+});
+
+const createCustomerSchema = customerRegistrationSchema;
+
+router.post("/customers", requireStaff, async (req, res, next) => {
+  try {
+    const input = createCustomerSchema.parse(req.body);
+    const customer = await prisma.user.create({ data: {
+      customerCode: `JAM-${crypto.randomUUID().replaceAll("-", "").toUpperCase()}`,
+      name: input.name, email: input.email, phone: input.phone,
+      passwordHash: await bcrypt.hash(input.password, 12),
+    }});
+    res.status(201).json({ customer: publicUser(customer) });
+  } catch (error) { next(error); }
+});
+
+router.post("/logout", requireStaff, async (req, res, next) => {
+  try {
+    await prisma.staffAccount.update({ where: { id: req.staff.id }, data: { tokenVersion: { increment: 1 } } });
+    res.json({ ok: true });
+  } catch (error) { next(error); }
 });
 
 const customerSearchSchema = z.object({
@@ -95,7 +118,7 @@ const awardPointsSchema = z.object({
   description: z.string().trim().min(3).max(200).default("Compra o servicio confirmado"),
 });
 
-router.post("/points", requireStaff, async (req, res, next) => {
+router.post("/points", requireStaff, requireOperations, async (req, res, next) => {
   try {
     const input = awardPointsSchema.parse(req.body);
     const invoiceNumber = input.invoiceNumber

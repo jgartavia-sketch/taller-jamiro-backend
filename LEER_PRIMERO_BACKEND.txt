@@ -1,0 +1,174 @@
+ESTE ZIP ES SOLO EL BACKEND
+Carpeta del proyecto: taller-jamiro-backend
+Destino: Render
+
+Conservar tus archivos .env y la carpeta .git.
+Orden de actualización: backend y migraciones primero; frontend después.
+
+JAMIRO — ACTUALIZACIÓN DEL 15 DE OCTUBRE DE 2026
+
+Esta entrega se divide en DOS ZIP. Este archivo corresponde al BACKEND.
+
+Los proyectos son:
+
+1. taller-automotriz-jamiro = FRONTEND (Next.js / Vercel).
+2. taller-jamiro-backend = BACKEND (Express / Prisma / PostgreSQL / Render).
+
+No se modificó GitHub ni producción. Este ZIP es para revisar, reemplazar y desplegar.
+No contiene contraseñas reales ni una copia de tu base de datos.
+Flor e Isaac todavía NO están creados en producción: faltan sus correos y las
+contraseñas que decidas configurar. Leo, Steven y Jairo se conservan.
+
+PRIMERO: RESPALDO
+
+Guardar copia de las dos carpetas actuales y respaldo de PostgreSQL antes de
+aplicar las migraciones. Conservar los archivos .env, .env.local, .env.production,
+.env.production.local y la carpeta .git que YA TENÉS. No copiarlos al ZIP ni subirlos.
+Las variables de Vercel y Render se conservan en cada servicio.
+
+REEMPLAZO DE ARCHIVOS
+
+Copiar el contenido de cada carpeta del ZIP DENTRO de su repositorio correspondiente,
+aceptando reemplazar los archivos. No colocar frontend dentro del backend ni al revés.
+Conservar .git y los .env reales. El .env.example es solo una plantilla.
+Borrar los archivos retirados enumerados en ARCHIVOS_RETIRADOS.txt; en particular
+los restos de Vite/Cloudflare del frontend y el archivo de migración mal ubicado.
+No borrar la base de datos, los logos ni las migraciones históricas restantes.
+
+BACKEND — ANTES DEL FRONTEND
+
+Desde la terminal abierta dentro de taller-jamiro-backend:
+
+npm ci
+npm run prisma:generate
+npm test
+npm run prisma:migrate
+
+La migración requiere DATABASE_URL real y conectividad a PostgreSQL.
+Usar en Render el comando de predespliegue: npm run prisma:migrate
+Comando de inicio: npm start
+Comando de build: npm ci && npm run prisma:generate
+Node.js recomendado: 24 LTS.
+
+En Render revisar:
+- NODE_ENV=production
+- JWT_SECRET y ADMIN_API_KEY: aleatorios, al menos 32 caracteres, no ejemplos.
+  Si los actuales son débiles, reemplazarlos. Para generar cada uno:
+  node -e "console.log(require('node:crypto').randomBytes(48).toString('hex'))"
+- JWT_EXPIRES_IN=8h
+- FRONTEND_URL=https://www.jamirosc.com,https://jamirosc.com
+  Agregar también el origen exacto de un preview si vas a probar uno.
+- TRUST_PROXY_HOPS según la topología real: normalmente 1 en Render con un solo
+  proxy; verificar antes de configurarlo. No usar confianza global.
+- Conservar DATABASE_URL, ADMIN_EMAIL y la configuración EMAIL real.
+
+No usar migrate reset ni db push --accept-data-loss.
+Si migrate deploy informa una migración histórica fallida, detener el despliegue
+y revisar el mensaje. No marcar migraciones como aplicadas sin revisar la base.
+
+AGREGAR FLOR E ISAAC
+
+En las variables del backend agregar estos bloques completos:
+
+STAFF_3_NAME=Flor
+STAFF_3_EMAIL=CORREO_REAL_DE_FLOR
+STAFF_3_PASSWORD=CONTRASENA_NUEVA_DE_FLOR
+STAFF_3_ROLE=RECEPTION
+
+STAFF_4_NAME=Isaac
+STAFF_4_EMAIL=CORREO_REAL_DE_ISAAC
+STAFF_4_PASSWORD=CONTRASENA_NUEVA_DE_ISAAC
+STAFF_4_ROLE=MECHANIC
+
+Usar correos distintos y contraseñas individuales de al menos 10 caracteres
+(máximo 72 bytes). No usar las contraseñas de los ejemplos antiguos.
+
+Los bloques STAFF_1 y STAFF_2 que existan en Render deben ser válidos y completos.
+Si no querés cambiar las contraseñas actuales de Leo y Steven, retirarlos de las
+variables usadas por este comando: sus cuentas se conservan en la base aunque
+se omitan. No borrar sus registros de PostgreSQL.
+
+Ejecutar una sola vez, con las variables y DATABASE_URL del servicio real:
+
+npm run staff:provision
+npm run staff:check
+
+El primer comando crea o actualiza las cuentas especificadas. Si repetís un
+bloque existente, cambia la contraseña de esa cuenta e invalida sus sesiones.
+No desactiva otras cuentas. El segundo lista nombre, correo, rol y estado; no
+muestra contraseñas. Confirmar cuatro staff activos y el admin Jairo. Si aparece
+alguna cuenta extra antigua, revisarla antes de desactivarla.
+
+NO ejecutar admin:provision salvo que quieras cambiar la contraseña de Jairo.
+No hace falta para agregar Flor o Isaac.
+
+FRONTEND
+
+Dentro de taller-automotriz-jamiro:
+
+npm ci
+npm run lint
+npm test
+npm run build
+
+En Vercel: framework Next.js y build npm run build.
+Verificar NEXT_PUBLIC_API_URL=https://URL_REAL_DEL_BACKEND sin /api al final.
+La variable se incorpora al compilar. Cambiarla requiere un nuevo despliegue.
+Desplegar este frontend después del backend y sus migraciones.
+Las sesiones anteriores se invalidan con la actualización: volver a iniciar sesión.
+
+GIT — SOLO DESPUÉS DE LAS PRUEBAS
+
+En la carpeta backend:
+git status
+git add -A
+git diff --cached --stat
+git commit -m "Corrige seguridad, permisos, registro de clientes y migraciones de Jamiro"
+git push origin main
+
+En la carpeta frontend:
+git status
+git add -A
+git diff --cached --stat
+git commit -m "Corrige textos y portales de clientes, staff y admin de Jamiro"
+git push origin main
+
+Si los despliegues automáticos están activos, esos push los dispararán.
+Asegurarse primero de que Render ejecute las migraciones antes del nuevo servidor.
+
+PRUEBA FINAL EN TU SISTEMA
+
+1. Jairo entra en /admin: lista clientes, registra uno, acredita una factura de
+   prueba y verifica puntos e historial del vehículo. Usar datos de prueba claros.
+2. Leo y Steven entran en /staff: confirmar que conservan su acceso.
+3. Flor entra en /staff: ve Registrar clientes. Buscar una cuenta existente y
+   registrar un cliente autorizado con correo nuevo y contraseña elegida por él.
+   Flor no debe ver ni poder usar puntos u órdenes.
+4. Isaac entra en /staff: ve registro, puntos y procesos. Buscar el cliente de
+   prueba y recibir un vehículo con al menos una foto real.
+5. Publicar diagnóstico, reparación y listo para entregar. Entrar como ese cliente
+   en /login: comprobar Mi cuenta, fotos y actualizaciones. Probar otro cliente:
+   no debe acceder a esa orden.
+6. Entregar el vehículo: pasa al historial. Una orden cerrada no acepta cambios.
+7. Cerrar sesión y confirmar que es necesario ingresar de nuevo. Cerrar sesión
+   invalida también las otras sesiones de la misma cuenta.
+8. Probar desde celular y revisar correo de bienvenida/puntos si EMAIL está configurado.
+
+La verificación local pasa; esta prueba con tu base y tus cuentas reales sigue
+pendiente. Leer DIAGNOSTICO.md para alcances, hallazgos y límites restantes.
+
+ACTUALIZACIÓN — CONTRASEÑA Y CONFIRMACIÓN
+El registro público y el registro interno de clientes exigen escribir dos veces
+la contraseña y comprobar que ambas coincidan. Texto visible:
+“Mínimo 8 caracteres, con al menos una letra mayúscula y un número. Combiná letras y números.”
+La validación se aplica en navegador y servidor. Las contraseñas actuales para
+iniciar sesión no se cambian. Ejemplo que cumple: Abcdefg1 (no usarlo como clave real).
+
+ACTUALIZACIÓN — ANDROID Y IPHONE
+Incluye ajustes táctiles, campos de 16 px para evitar zoom automático en iPhone,
+menú desplazable en horizontal, zonas seguras de pantalla y estilos de navegación
+separados del admin. La compresión de fotos ahora es secuencial para reducir
+memoria; valida errores de procesamiento y archivos de más de 20 MB.
+Se conservan cámara trasera/galería mediante el selector nativo de cada teléfono.
+La apertura física de cámara y permisos requiere prueba final en Android/iPhone
+reales tras el despliegue HTTPS. Ver los registros de prueba móvil adjuntos.

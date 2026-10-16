@@ -10,7 +10,7 @@ function readAdmin() {
   const password = String(process.env.ADMIN_PASSWORD || "");
 
   if (!password) throw new Error("Falta ADMIN_PASSWORD.");
-  if (password.length < 10) {
+  if (password.length < 10 || Buffer.byteLength(password, "utf8") > 72) {
     throw new Error("ADMIN_PASSWORD debe tener al menos 10 caracteres.");
   }
 
@@ -23,7 +23,7 @@ async function provision() {
 
   await prisma.staffAccount.upsert({
     where: { email: account.email },
-    update: { name: account.name, passwordHash, active: true },
+    update: { name: account.name, passwordHash, active: true, tokenVersion: { increment: 1 } },
     create: { name: account.name, email: account.email, passwordHash, active: true },
   });
 

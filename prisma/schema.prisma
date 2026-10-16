@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum StaffRole {
+  MECHANIC
+  RECEPTION
+}
+
 enum UserRole {
   CUSTOMER
   ADMIN
@@ -55,6 +60,7 @@ model User {
   email                String          @unique
   phone                String
   passwordHash         String
+  tokenVersion         Int             @default(0)
   role                 UserRole        @default(CUSTOMER)
   purchasePoints       Int             @default(0)
   referralPoints       Int             @default(0)
@@ -78,6 +84,8 @@ model StaffAccount {
   name           String
   email          String          @unique
   passwordHash   String
+  tokenVersion   Int             @default(0)
+  role           StaffRole       @default(MECHANIC)
   active         Boolean         @default(true)
   pointMovements PointMovement[]
   createdOrders  ServiceOrder[]  @relation("OrderCreator")

@@ -1,3 +1,4 @@
+import { emailSchema, customerRegistrationSchema } from "../lib/validation.js";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -9,20 +10,16 @@ import { sendReferralRegistrationEmail, sendWelcomeEmail } from "../lib/email.js
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
-const registerSchema = z.object({
-  name: z.string().trim().min(3).max(100),
-  email: z.email().trim().toLowerCase(),
-  phone: z.string().trim().min(8).max(30),
-  password: z.string().min(8).max(100),
+const registerSchema = customerRegistrationSchema.safeExtend({
   referral: z.string().trim().max(30).optional().or(z.literal("")),
 });
 const loginSchema = z.object({
-  email: z.email().trim().toLowerCase(),
+  email: emailSchema,
   password: z.string().min(1).max(100),
 });
 
 function createToken(user) {
-  return jwt.sign({ sub: user.id, role: user.role }, config.jwtSecret, {
+  return jwt.sign({ sub: user.id, kind: "customer", role: user.role, version: user.tokenVersion }, config.jwtSecret, {
     expiresIn: config.jwtExpiresIn,
   });
 }
@@ -43,6 +40,7 @@ router.post("/register", async (req, res, next) => {
       }
     }
 
+    const passwordHash = await bcrypt.hash(input.password, 12);
     const registration = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
@@ -50,16 +48,21 @@ router.post("/register", async (req, res, next) => {
           name: input.name,
           email: input.email,
           phone: input.phone,
-          passwordHash: await bcrypt.hash(input.password, 12),
+          passwordHash,
           referredById: referralCode?.ownerId,
         },
       });
 
       if (referralCode) {
-        await tx.referralCode.update({
-          where: { id: referralCode.id },
+        const claimed = await tx.referralCode.updateMany({
+          where: { id: referralCode.id, usedAt: null, expiresAt: { gt: new Date() } },
           data: { usedAt: new Date(), usedById: created.id },
         });
+        if (claimed.count !== 1) {
+          const error = new Error("El código de referido ya fue utilizado o venció.");
+          error.status = 409;
+          throw error;
+        }
         await tx.user.update({
           where: { id: referralCode.ownerId },
           data: {
@@ -96,8 +99,8 @@ router.post("/register", async (req, res, next) => {
       token: createToken(user),
       customer,
       notifications: {
-        welcomeEmailQueued: true,
-        referralEmailQueued: Boolean(referralOwner),
+        welcomeEmailQueued: Boolean(config.emailUser && config.emailPass),
+        referralEmailQueued: Boolean(referralOwner && config.emailUser && config.emailPass),
       },
     });
 
@@ -157,6 +160,11 @@ router.get("/me", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/logout", (_req, res) => res.json({ ok: true }));
+router.post("/logout", requireAuth, async (req, res, next) => {
+  try {
+    await prisma.user.update({ where: { id: req.user.id }, data: { tokenVersion: { increment: 1 } } });
+    res.json({ ok: true });
+  } catch (error) { next(error); }
+});
 
 export default router;

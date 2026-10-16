@@ -1,0 +1,56 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> taller-jamiro-backend@1.0.0 test
+> node --test
+
+✔ convierte ₡100 en un punto (1.53703ms)
+✔ redondea hacia abajo y rechaza montos inválidos (0.219774ms)
+GET /me 401 2.503 ms
+✔ acceso anónimo rechazado (34.464649ms)
+POST /customers 201 360.814 ms
+✔ recepción crea clientes sin exponer contraseña ni iniciar su sesión (730.972414ms)
+POST /points 403 0.798 ms
+GET /staff/orders 403 0.524 ms
+POST /staff/orders 403 0.467 ms
+POST /staff/orders/12345678-1234-4234-8234-123456789013/updates 403 0.624 ms
+✔ recepción no puede acreditar puntos ni leer o modificar órdenes (21.032929ms)
+GET /staff/orders 200 0.834 ms
+GET /staff/orders 401 0.277 ms
+✔ mecánico activo puede acceder; una cuenta desactivada no (6.507426ms)
+GET /me 401 0.324 ms
+GET /me 401 0.466 ms
+GET /me 401 0.357 ms
+GET /me 401 0.306 ms
+GET /me 200 0.474 ms
+✔ sesiones de cliente, staff y admin mantienen sus permisos (14.892276ms)
+GET /customer/orders/12345678-1234-4234-8234-123456789012 404 0.730 ms
+✔ detalle de orden restringido al propietario (2.927851ms)
+✔ CORS y JSON inválidos producen errores controlados (4.86425ms)
+POST /api/workshop/staff/orders/12345678-1234-4234-8234-123456789013/updates 400 1.736 ms
+✔ rechaza fotos falsas y fechas imposibles (5.959918ms)
+GET /me 401 0.274 ms
+✔ un token revocado queda rechazado (1.902243ms)
+✔ limitador bloquea repeticiones y distingue direcciones (0.456569ms)
+POST /login 200 354.797 ms
+POST /login 401 336.876 ms
+✔ login staff valida contraseña y devuelve rol de recepción (1068.057985ms)
+GET /me 401 0.459 ms
+GET /me 401 0.337 ms
+✔ rechaza tokens vencidos y tokens con firma incorrecta (9.25214ms)
+POST /logout 200 0.456 ms
+GET /me 401 0.471 ms
+✔ logout invalida el token en el servidor (6.164423ms)
+POST /api/auth/register 400 1.059 ms
+POST /api/auth/register 400 0.230 ms
+POST /api/auth/register 400 0.558 ms
+POST /api/auth/register 400 0.314 ms
+POST /api/auth/register 400 0.289 ms
+✔ registro exige confirmación, ocho caracteres, mayúscula y número (17.40348ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2304.100485
