@@ -34,9 +34,17 @@ test("recepción crea clientes sin exponer contraseña ni iniciar su sesión", a
  assert.equal(data.customer.email,"cliente@example.com");assert.equal(data.token,undefined);assert.equal(data.customer.passwordHash,undefined);
  assert.equal(await bcrypt.compare("Test-password-123",created.passwordHash),true);
 });
-test("recepción no puede acreditar puntos ni leer o modificar órdenes", async () => {
- staff = {id:sid,email:"flor@example.com",role:"RECEPTION",active:true};
- for (const [path,body] of [["/api/staff/points",{}],["/api/workshop/staff/orders",undefined],["/api/workshop/staff/orders",{}],[`/api/workshop/staff/orders/${cid}/updates`,{}]]) assert.equal((await request(path,"staff",body)).status,403);
+test("recepción tiene las mismas operaciones que mecánicos y conserva validación", async () => {
+ for (const role of ["RECEPTION", "MECHANIC"]) {
+  staff = {id:sid,email:"personal@example.com",role,active:true};
+  assert.equal((await request("/api/workshop/staff/orders","staff")).status,200);
+  for (const [path,body] of [["/api/staff/points",{}],["/api/workshop/staff/orders",{}],[`/api/workshop/staff/orders/${cid}/updates`,{}]]) {
+   assert.equal((await request(path,"staff",body)).status,400);
+  }
+  assert.equal((await request("/api/admin-portal/me","staff")).status,401);
+ }
+ staff = {id:sid,email:"flor@example.com",role:"RECEPTION",active:false};
+ assert.equal((await request("/api/workshop/staff/orders","staff")).status,401);
 });
 test("mecánico activo puede acceder; una cuenta desactivada no", async () => {
  staff = {id:sid,email:"isaac@example.com",role:"MECHANIC",active:true};

@@ -1,3 +1,4 @@
+import { hasOperationsAccess } from "../lib/staff-permissions.js";
 import { timingSafeEqual } from "node:crypto";
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
@@ -64,8 +65,8 @@ export function requireAdminKey(req, res, next) {
 }
 
 export function requireOperations(req, res, next) {
-  if (req.staff.role === "RECEPTION" && req.staff.email !== config.adminEmail) {
-    return res.status(403).json({ error: "Tu cuenta permite registrar y buscar clientes. Esta función requiere acceso de mecánico o administrador." });
+  if (!hasOperationsAccess(req.staff, config.adminEmail)) {
+    return res.status(403).json({ error: "Esta función requiere una cuenta autorizada del personal o del administrador." });
   }
   next();
 }
